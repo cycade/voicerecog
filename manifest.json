@@ -2,11 +2,16 @@
   "name": "CET voice input",
   "version": "0.1",
   "description": "transfer voice to text input",
-  "permissions": ["tabs", "tabCapture", "downloads", "storage", "declarativeContent"],
+  "permissions": ["declarativeContent", "http://*/*", "https://*/*", "tabs"],
   "background": {
     "scripts": ["background.js"],
     "persistent": false
   },
+  "content_scripts": [{
+    "matches": ["http://*/*", "https://*/*"],
+    "js": ["content.js"],
+    "run_at": "document_end"
+  }],
   "page_action": {
     "default_popup": "popup.html",
     "default_icon": {

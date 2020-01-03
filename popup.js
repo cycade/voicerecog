@@ -1,46 +1,68 @@
-let changeColor = document.getElementById('changeColor');
-let videoElement = document.querySelector('video');
+var SpeechRecognition = SpeechRecognition || webkitSpeechRecognition;
+var SpeechGrammarList = SpeechGrammarList || webkitSpeechGrammarList;
+var SpeechRecognitionEvent = SpeechRecognitionEvent || webkitSpeechRecognitionEvent;
 
-function fetchIntoElement(method, url, selector, loadingText) {
-  let xhr = new XMLHttpRequest(), targetComponent = document.querySelector(selector);
+const recognition = new SpeechRecognition();
 
-  if (loadingText) { targetComponent.innerHTML = loadingText; }
+recognition.lang = 'zh-Hans';
+recognition.interimResults = false;
+recognition.maxAlternatives = 1;
 
-  xhr.open(method, url, true);
-  xhr.onreadystatechange = function() {
-    targetComponent.innerHTML = xhr.responseText.length;
+const status = document.querySelector('#status');
+let result;
+
+document.querySelector('#start').onclick = function() {
+  recognition.start();
+  status.textContent = `识别中`;
+}
+
+recognition.onresult = function(event) {
+  const last = event.results.length - 1;
+  let prevResult = result;
+  result = event.results[last][0].transcript;
+
+  status.textContent = `识别结果: ${result}`;
+
+  chrome.tabs.query({ currentWindow: true, active: true }, tabs => {
+    const code = input => `(function setContent(input) {
+      let autoFilled = !!localStorage.getItem('cursor');
+
+      if (autoFilled) {
+        autoFilled = false;
+        document.querySelectorAll('input, textarea').forEach(e => {
+          if (e.id === localStorage.getItem('cursor')) { e.value += input; autoFilled = true; }
+        });
+      }
+
+      if (!autoFilled) {
+        navigator.clipboard.writeText(input);
+        alert('已复制到剪切板');
+      }
+    })('${input}');`
+
+    chrome.tabs.executeScript(tabs[0].id, { code: code(result) }, () => {});
+  })
+
+  if (!prevResult && result) {
+    let copyButton = document.createElement('button');
+    copyButton.id = 'copy';
+    copyButton.innerHTML = '复制当前内容';
+    copyButton.onclick = function() {
+      navigator.clipboard.writeText(result);
+    }
+    document.getElementById('content').appendChild(copyButton);
+  } else if (result) {
+    document.getElementById('copy').onclick = function() {
+      navigator.clipboard.writeText(result);
+    }
   }
-  xhr.send();
 }
 
-chrome.storage.sync.get('color', function(data) {
-  changeColor.style.backgroundColor = data.color;
-  changeColor.setAttribute('value', data.color);
-})
-
-changeColor.onclick = function(element) {
-  let color = element.target.value;
-  const url = 'https://psmapi.lcquest.com/api/v1/records';
-
-  fetchIntoElement('GET', url, '#res', 'loading');
-  
-  chrome.tabCapture.capture({audio: true}, stream => {
-    let startTabId;
-    chrome.tabs.query({active: true, currentWindow: true}, tabs => startTabId = tabs[0].id);
-    const audioCtx = new AudioContext();
-    const source = audioCtx.createMediaStreamSource(stream);
-    const streamBlock = document.getElementById('stream');
-    streamBlock.innerHTML = source;
-
-    videoElement.srcObject = stream;
-    videoElement.onloadedmetadata = e => { videoElement.play(); }
-  })  
-  
-  chrome.tabs.query({ active: true, currentWindow: true }, function(tabs) {
-    chrome.tabs.executeScript(
-      tabs[0].id,
-      { code: `document.body.style.backgroundColor = "${color}";` }
-    );
-  });
+recognition.onspeechend = function() {
+  recognition.stop();
+  status.textContent = `识别完成，请稍候`;
 }
 
+recognition.onerror = function(event) {
+  status.textContent = `识别错误: ${event.error}，请重试`;
+}
