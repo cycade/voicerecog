@@ -1,6 +1,4 @@
 var SpeechRecognition = SpeechRecognition || webkitSpeechRecognition;
-var SpeechGrammarList = SpeechGrammarList || webkitSpeechGrammarList;
-var SpeechRecognitionEvent = SpeechRecognitionEvent || webkitSpeechRecognitionEvent;
 
 const recognition = new SpeechRecognition();
 
@@ -17,8 +15,7 @@ document.querySelector('#start').onclick = function() {
 }
 
 recognition.onresult = function(event) {
-  const last = event.results.length - 1;
-  let prevResult = result;
+  const last = event.results.length - 1, prevResult = result;
   result = event.results[last][0].transcript;
 
   status.textContent = `识别结果: ${result}`;
@@ -36,7 +33,7 @@ recognition.onresult = function(event) {
 
       if (!autoFilled) {
         navigator.clipboard.writeText(input);
-        alert('已复制到剪切板');
+        alert('"' + input + '" 已复制到剪切板');
       }
     })('${input}');`
 
