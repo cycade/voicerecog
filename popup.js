@@ -15,23 +15,42 @@ const startEvent = function() {
 startButton.onclick = startEvent;
 
 // lifecycle of recognition
+const recognitionStatus = {
+  start: '开始识别',
+  receiving: '',
+  received: '接收完毕，请稍候',
+  recognizing: '识别中',
+
+  abort: '识别已中止',
+  emptyContent: '未收到输入，请重试',
+  success: result => `识别结果: ${result}`,
+  failed: event => `识别错误: ${event.error}，请重试`,
+}
+
 recognition.onstart = function() {
   startButton.textContent = '中止识别';
-  startButton.onclick = function() { recognition.stop(); status.textContent = '识别已中止'; }
+  startButton.onclick = function() { recognition.stop(); status.textContent = recognitionStatus.abort; }
   let copyButton = document.getElementById('copy');
   if (copyButton) { copyButton.remove(); }
 
-  status.textContent = `识别中`;
+  status.textContent = recognitionStatus.recognizing;
 }
 
 recognition.onspeechend = function() {
   recognition.stop();
-  status.textContent = `识别完成，请稍候，如长时间未响应请考虑重新输入`;
+  status.textContent = recognitionStatus.received;
+  startButton.disabled = true;
+  setTimeout(() => {
+    if (status.textContent === recognitionStatus.received) {
+      status.textContent = recognitionStatus.emptyContent;
+      startButton.disabled = false;
+    }
+  }, 3500);
 }
 
 recognition.onerror = function(event) {
   recognition.stop();
-  status.textContent = `识别错误: ${event.error}，请重试`;
+  status.textContent = recognitionStatus.failed(event);
 }
 
 recognition.onend = function(event) {
@@ -43,13 +62,11 @@ recognition.onresult = function(event) {
   const last = event.results.length - 1;
   const result = event.results[last][0].transcript;
   
-  status.textContent = `识别结果: ${result}`;
+  status.textContent = recognitionStatus.success(result);
 
   chrome.tabs.query({ currentWindow: true, active: true }, tabs => {
     const code = input => `(function setContent(input) {
-      const autoFilled = !!localStorage.getItem('cursor');
-
-      if (autoFilled) {
+      if (localStorage.getItem('cursor')) {
         document.querySelectorAll('input, textarea').forEach(e => {
           if (e.id === localStorage.getItem('cursor')) { e.value += input; }
         });
@@ -60,6 +77,7 @@ recognition.onresult = function(event) {
   })
 
   handleCopyButton(result);
+  startButton.disabled = false;
 }
 
 function handleCopyButton(result) {

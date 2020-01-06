@@ -1,23 +1,23 @@
 (function setCursorLocation() {
+  function storeNodeId(node) {
+    if (!node.id) { node.id = Math.random().toString(36).slice(-5); }
+    localStorage.setItem('cursor', node.id);
+  }
+
+  function addTrackNodeListener(node) {
+    const focusFn = node.onfocus;
+    node.onfocus = event => { focusFn && focusFn(event); storeNodeId(node); }
+  }
+
   document.querySelectorAll('input, textarea').forEach(e => {
-    if (!e.id) { e.id = Math.random().toString(36).slice(-5); }
-    const fn = e.onfocus;
-    e.onfocus = event => {
-      fn && fn(event);
-      localStorage.setItem('cursor', e.id);
-    }
+    addTrackNodeListener(e);
   });
 
   const onInputAdded = (mutations) => {
-    mutations.forEach(f => {
-      f.addedNodes.forEach(e => {
+    mutations.forEach(mutation => {
+      mutation.addedNodes.forEach(e => {
         if (e.tagName === 'INPUT' || e.tagName === 'TEXTAREA') {
-          if (!e.id) { e.id = Math.random().toString(36).slice(-5); }
-          const fn = e.onfocus;
-          e.onfocus = event => {
-            fn && fn(event);
-            localStorage.setItem('cursor', e.id);
-          }
+          addTrackNodeListener(e);
         }
       });
     })
