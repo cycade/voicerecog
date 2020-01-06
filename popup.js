@@ -10,8 +10,27 @@ const status = document.querySelector('#status');
 let result;
 
 document.querySelector('#start').onclick = function() {
+  recognition.stop();
   recognition.start();
+}
+
+recognition.onstart = function() {
   status.textContent = `识别中`;
+}
+
+recognition.onspeechend = function() {
+  recognition.stop();
+  status.textContent = `识别完成，请稍候`;
+}
+
+recognition.onerror = function(event) {
+  recognition.stop();
+  status.textContent = `识别错误: ${event.error}，请重试`;
+}
+
+recognition.onnomatch = function(event) {
+  recognition.stop();
+  status.textContent = `未识别到任何语音`;
 }
 
 recognition.onresult = function(event) {
@@ -40,26 +59,27 @@ recognition.onresult = function(event) {
     chrome.tabs.executeScript(tabs[0].id, { code: code(result) }, () => {});
   })
 
-  if (!prevResult && result) {
-    let copyButton = document.createElement('button');
-    copyButton.id = 'copy';
+  addCopyButton(result, prevResult);
+}
+
+function addCopyButton(result, prevResult) {
+  if (result) {
+    let copyButton;
+    if (!prevResult) {
+      copyButton = document.createElement('button');
+      copyButton.id = 'copy';
+    } else {
+      copyButton = document.getElementById('copy');
+    }
+
     copyButton.innerHTML = '复制当前内容';
     copyButton.onclick = function() {
       navigator.clipboard.writeText(result);
+      copyButton.innerHTML = '已复制到剪贴板';
     }
-    document.getElementById('content').appendChild(copyButton);
-  } else if (result) {
-    document.getElementById('copy').onclick = function() {
-      navigator.clipboard.writeText(result);
+
+    if (!prevResult) {
+      document.getElementById('content').appendChild(copyButton);
     }
   }
-}
-
-recognition.onspeechend = function() {
-  recognition.stop();
-  status.textContent = `识别完成，请稍候`;
-}
-
-recognition.onerror = function(event) {
-  status.textContent = `识别错误: ${event.error}，请重试`;
 }
